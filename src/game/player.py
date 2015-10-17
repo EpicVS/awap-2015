@@ -25,6 +25,10 @@ class Player(BasePlayer):
 
         return
 
+#--------------------------------------------------------
+#HELPER FUNCTIONS
+#--------------------------------------------------------
+
     # Checks if we can use a given path
     def path_is_valid(self, state, path):
         graph = state.get_graph()
@@ -33,10 +37,17 @@ class Player(BasePlayer):
                 return False
         return True
 
+    # Given a graph, returns a graph with all edges in use removed
     def remove_in_use(self, graph):
         for edge in graph.edges():
             if graph.edge[edge[0]][edge[1]]['in_use']:
                 graph.remove_edge(edge[0], edge[1])
+
+    # returns expected reward of order given distance
+    def expected_reward(self, order, distance):
+        return order.money - DECAY_FACTOR*distance
+
+#--------------------------------------------------------
 
     # n is the numberr of nodes to select
     # k is the weighting of the the number of edges
@@ -63,6 +74,26 @@ class Player(BasePlayer):
         profit = money + immediate*0.8 + rate_profit * time_remaining
         return profit
 
+    def baseline_get(self, graph, pending_orders):
+        bestMoney = 0
+        bestStation = None
+        bestOrder = None
+        bestPath = None
+        for station in self.stations:
+            for order in pending_orders:
+                try:
+                    p=nx.shortest_path(graph, source=station, target=order.node)
+                except nx.NetworkXException:
+                    pass
+                else:
+                    expectedMoney = self.expected_reward(order, len(p))
+                    if expectedMoney > bestMoney:
+                        bestMoney = expectedMoney
+                        bestStation = station
+                        bestOrder = order
+                        bestPath = p
+        return (bestMoney,bestStation,bestOrder,bestPath)
+
     def step(self, state):
         """
         Determine actions based on the current state of the city. Called every
@@ -77,13 +108,9 @@ class Player(BasePlayer):
             self.build_command. The commands are evaluated in order.
         """
 
-        # We have implemented a naive bot for you that builds a single station
-        # and tries to find the shortest path from it to first pending order.
-        # We recommend making it a bit smarter ;-)
-
         graph = state.get_graph()
-
         commands = []
+
         if not self.has_built_station:
             station = self.select_first_station(graph)
             commands.append(self.build_command(station))
@@ -99,24 +126,8 @@ class Player(BasePlayer):
             tempGraph = graph.copy()
             self.remove_in_use(tempGraph)
 
-            bestMoney = 0
-            bestStation = None
-            bestOrder = None
-            bestPath = None
-            for station in self.stations:
-                for order in pending_orders:
-                    try:
-                        p=nx.shortest_path(tempGraph, source=station, target=order.node)
-                    except nx.NetworkXException:
-                        pass
-                    else:
-                        expectedMoney = order.money - DECAY_FACTOR*len(p)
-                        if expectedMoney > bestMoney:
-                            bestMoney = expectedMoney
-                            bestStation = station
-                            bestOrder = order
-                            bestPath = p
-            if bestMoney > 0:
-                commands.append(self.send_command(bestOrder, bestPath))
+            (money,station,order,path) = self.baseline_get(tempGraph, pending_orders)
+            if money > 0:
+                commands.append(self.send_command(order, path))
 
         return commands
