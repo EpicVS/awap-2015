@@ -47,6 +47,9 @@ class Player(BasePlayer):
     def expected_reward(self, order, distance):
         return order.money - DECAY_FACTOR*distance
 
+    def station_cost(self):
+        return STATION_COST*BUILD_FACTOR**(len(self.stations)-1)
+
 #--------------------------------------------------------
 
     # n is the numberr of nodes to select
@@ -67,7 +70,7 @@ class Player(BasePlayer):
     def make_random_command(self, state):
         pass
 
-    def good_station():
+    def good_station(self):
         dist = [10000 for n in state.graph.nodes()]
         for station in self.stations:
             tree = nx.shortest_path(state.graph, source = station)
@@ -87,7 +90,8 @@ class Player(BasePlayer):
     #scoring function
     def score_commands(self, state, num_station, orders, verbose = False):
         order, path = zip(*orders)
-        perstationcost = _
+        #!!!!!!!!!
+        perstationcost = self.station_cost()
         money = perstationcost*num_station
         immediate = sum([expected_reward(order.money, len(path)) for order in orders])
         rate_profit = num_station/len(self.stations)
