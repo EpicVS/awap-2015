@@ -32,6 +32,20 @@ class Player(BasePlayer):
                 return False
         return True
 
+    # n is the numberr of nodes to select
+    # k is the weighting of the the number of edges
+    def select_first_station(self, graph, n=100, k=1):
+        # sample = random.sample(xrange(100),n)#nx.number_of_nodes(graph)), n)
+        nodes = graph.nodes()
+        # sample_nodes = [nodes[i] for i in sample]
+        sample_nodes = random.sample(nodes, n)
+        node_weights = []
+        for node in sample_nodes:
+            distances =  nx.shortest_path_length(graph, source=node).values()
+            ave_dist = sum(distances)/float(len(distances)) if len(distances)>0 else 9999999999999999999
+            node_weights.append((ave_dist,node))
+        return min(node_weights)[1]
+
     def step(self, state):
         """
         Determine actions based on the current state of the city. Called every
@@ -51,7 +65,7 @@ class Player(BasePlayer):
         # We recommend making it a bit smarter ;-)
 
         graph = state.get_graph()
-        station = graph.nodes()[0]
+        station = self.select_first_station(graph)#graph.nodes()[0]
 
         commands = []
         if not self.has_built_station:
