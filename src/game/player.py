@@ -47,8 +47,15 @@ class Player(BasePlayer):
             node_weights.append((ave_dist/(degree*k),node))
         return min(node_weights)[1]
 
-    def score_orders(self, state, order):
-        pass #this is a test
+    def score_commands(self, state, stations, paths):
+        profit = 0
+        money = state.money
+        immediate = reward_from_new_widget_deliveries
+        rate_profit = 1+newstations/currentstations
+        c = 1/3.
+        time_remaining = total_time - state.time
+        profit = money + immediate*0.8 + rate_profit * time_remaining
+        return profit
 
     def step(self, state):
         """
