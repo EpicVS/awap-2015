@@ -64,11 +64,14 @@ class Player(BasePlayer):
             node_weights.append((ave_dist/(degree*k),node))
         return min(node_weights)[1]
 
-    def score_commands(self, state, stations, paths):
+    def make_random_command(self, state):
+        pass
+
+    def score_commands(self, state, num_station, orders):
         profit = 0
         money = state.money
-        immediate = reward_from_new_widget_deliveries
-        rate_profit = 1+newstations/currentstations
+        immediate = sum([order.money for order in orders])
+        rate_profit = newstations/currenstations
         c = 1/3.
         time_remaining = total_time - state.time
         profit = money + immediate*0.8 + rate_profit * time_remaining
