@@ -71,7 +71,7 @@ class Player(BasePlayer):
     def make_random_command(self, state):
         pass
 
-    def good_station(self):
+    def good_station(self, state):
         dist = [10000 for n in state.graph.nodes()]
         for station in self.stations:
             tree = nx.shortest_path(state.graph, source = station)
@@ -191,10 +191,12 @@ class Player(BasePlayer):
                 command_scores = []
                 for commands in best_orders_lists:
                     numStations = 0 if random.random()>0.1 else 1
-                    command_scores.append(self.score_commands(state,numStations, commands),commands)
+                    command_scores.append(self.score_commands(state,numStations, commands),commands, numStations)
 
-                best_command = max(command_scores)[1]
+                (best_score,best_command,numStations) = max(command_scores)
 
+                if numStations>1:
+                    commands.append(self.build_command(self.good_station(state)))
                 commands.append(self.send_command(best_command[0],best_command[1]))
 
 
