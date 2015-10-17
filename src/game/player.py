@@ -48,7 +48,7 @@ class Player(BasePlayer):
         return min(node_weights)[1]
 
     def score_orders(self, state, order):
-        pass
+        pass #this is a test
 
     def step(self, state):
         """
