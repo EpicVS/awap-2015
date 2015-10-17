@@ -1,3 +1,4 @@
+from collections import deque
 import networkx as nx
 import random
 from base_player import BasePlayer
@@ -88,13 +89,13 @@ class Player(BasePlayer):
         return i+1
 
     #scoring function
-    def score_commands(self, state, num_station, orders, verbose = False):
-        order, path = zip(*orders)
+    def score_commands(self, state, num_station, ordertups, verbose = False):
+        order, path = zip(*ordertups)
         #!!!!!!!!!
         perstationcost = self.station_cost()
         money = perstationcost*num_station
-        immediate = sum([expected_reward(order.money, len(path)) for order in orders])
-        rate_profit = num_station/len(self.stations)
+        immediate = sum([self.expected_reward(order.money, len(path)) for order in orders])
+        rate_profit = num_station/len(self.stations)*income
         time_remaining = GAME_LENGTH - state.time
         if verbose:
             print money
