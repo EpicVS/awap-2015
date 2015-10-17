@@ -48,6 +48,9 @@ class Player(BasePlayer):
     def expected_reward(self, order, distance):
         return order.money - DECAY_FACTOR*distance
 
+    def station_cost(self):
+        return STATION_COST*BUILD_FACTOR**(len(self.stations)-1)
+
 #--------------------------------------------------------
 
     # n is the numberr of nodes to select
@@ -68,15 +71,37 @@ class Player(BasePlayer):
     def make_random_command(self, state):
         pass
 
-    def score_commands(self, state, num_station, orders):
-        profit = 0
-        money = state.money
-        immediate = sum([order.money for order in orders])
-        rate_profit = newstations/currenstations
-        c = 1/3.
-        time_remaining = total_time - state.time
-        profit = money + immediate*0.8 + rate_profit * time_remaining
-        return profit
+    def good_station(self):
+        dist = [10000 for n in state.graph.nodes()]
+        for station in self.stations:
+            tree = nx.shortest_path(state.graph, source = station)
+            for k, v in tree.items():
+                dist[k-1] = min(dist[k-1],v)
+        deg = [state.graph.degree(x+1) for x in xrange(len(d2n))]
+        value = [x*dist[i] for i, x in enumerate(deg)]
+        imax = -1
+        vmax = 0
+        for i, x in enumerate(deg):
+            if x*dist[i] > vmax:
+                vmax = x*dist[i]
+                imax = i
+        assert imax != -1
+        return i+1
+
+    #scoring function
+    def score_commands(self, state, num_station, orders, verbose = False):
+        order, path = zip(*orders)
+        #!!!!!!!!!
+        perstationcost = self.station_cost()
+        money = perstationcost*num_station
+        immediate = sum([expected_reward(order.money, len(path)) for order in orders])
+        rate_profit = num_station/len(self.stations)
+        time_remaining = GAME_LENGTH - state.time
+        if verbose:
+            print money
+            print immediate*0.8
+            print rate_profit*0.7*time_remaining
+        return money + immediate * 0.8 + rate_profit * 0.7 * time_remaining
 
     def baseline_get(self, graph, pending_orders):
         bestMoney = 0
