@@ -34,16 +34,17 @@ class Player(BasePlayer):
 
     # n is the numberr of nodes to select
     # k is the weighting of the the number of edges
-    def select_first_station(self, graph, n=100, k=1):
+    def select_first_station(self, graph, n=None, k=0.5):
         # sample = random.sample(xrange(100),n)#nx.number_of_nodes(graph)), n)
         nodes = graph.nodes()
         # sample_nodes = [nodes[i] for i in sample]
-        sample_nodes = random.sample(nodes, n)
+        sample_nodes = random.sample(nodes, n) if n!=None else nodes
         node_weights = []
         for node in sample_nodes:
             distances =  nx.shortest_path_length(graph, source=node).values()
             ave_dist = sum(distances)/float(len(distances)) if len(distances)>0 else 9999999999999999999
-            node_weights.append((ave_dist,node))
+            degree = float(len(nx.neighbors(graph, node)))
+            node_weights.append((ave_dist/(degree*k),node))
         return min(node_weights)[1]
 
     def step(self, state):
@@ -65,17 +66,17 @@ class Player(BasePlayer):
         # We recommend making it a bit smarter ;-)
 
         graph = state.get_graph()
-        station = self.select_first_station(graph)#graph.nodes()[0]
 
         commands = []
         if not self.has_built_station:
-            commands.append(self.build_command(station))
+            self.station = self.select_first_station(graph)
+            commands.append(self.build_command(self.station))
             self.has_built_station = True
 
         pending_orders = state.get_pending_orders()
         if len(pending_orders) != 0:
             order = random.choice(pending_orders)
-            path = nx.shortest_path(graph, station, order.get_node())
+            path = nx.shortest_path(graph, self.station, order.get_node())
             if self.path_is_valid(state, path):
                 commands.append(self.send_command(order, path))
 
