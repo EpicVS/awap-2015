@@ -11,6 +11,7 @@ class Player(BasePlayer):
 
     # You can set up static state here
     has_built_station = False
+    stations = []
 
     def __init__(self, state):
         """
@@ -31,6 +32,11 @@ class Player(BasePlayer):
             if graph.edge[path[i]][path[i + 1]]['in_use']:
                 return False
         return True
+
+    def remove_in_use(self, graph):
+        for edge in graph.edges():
+            if graph.edge[edge[0]][edge[1]]['in_use']:
+                graph.remove_edge(edge[0], edge[1])
 
     # n is the numberr of nodes to select
     # k is the weighting of the the number of edges
@@ -79,15 +85,38 @@ class Player(BasePlayer):
 
         commands = []
         if not self.has_built_station:
-            self.station = self.select_first_station(graph)
-            commands.append(self.build_command(self.station))
+            station = self.select_first_station(graph)
+            commands.append(self.build_command(station))
             self.has_built_station = True
+            self.stations.append(station)
 
+        # baseline job-picking
         pending_orders = state.get_pending_orders()
         if len(pending_orders) != 0:
-            order = random.choice(pending_orders)
-            path = nx.shortest_path(graph, self.station, order.get_node())
-            if self.path_is_valid(state, path):
-                commands.append(self.send_command(order, path))
+            # make copy of graph
+            # remove all edges in use
+            # shortest path from each station to job
+            tempGraph = graph.copy()
+            self.remove_in_use(tempGraph)
+
+            bestMoney = 0
+            bestStation = None
+            bestOrder = None
+            bestPath = None
+            for station in self.stations:
+                for order in pending_orders:
+                    try:
+                        p=nx.shortest_path(tempGraph, source=station, target=order.node)
+                    except nx.NetworkXException:
+                        pass
+                    else:
+                        expectedMoney = order.money - DECAY_FACTOR*len(p)
+                        if expectedMoney > bestMoney:
+                            bestMoney = expectedMoney
+                            bestStation = station
+                            bestOrder = order
+                            bestPath = p
+            if bestMoney > 0:
+                commands.append(self.send_command(bestOrder, bestPath))
 
         return commands
