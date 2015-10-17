@@ -50,7 +50,7 @@ class Player(BasePlayer):
         return order.money - DECAY_FACTOR*distance
 
     def station_cost(self):
-        return STATION_COST*BUILD_FACTOR**(len(self.stations)-1)
+        return INIT_BUILD_COST*BUILD_FACTOR**(len(self.stations)-1)
 
 #--------------------------------------------------------
 
@@ -91,12 +91,20 @@ class Player(BasePlayer):
 
     #scoring function
     def score_commands(self, state, num_station, ordertups, verbose = False):
-        order, path = zip(*ordertups)
+        # print ordertups
+        # orders, path = ordertups
+        # orders, path = zip(*ordertups)
+        # for tup in ordertups:
+        #     print tup
+        #     orders.append(tup[0])
+        #     path.append(tup[1])
+        # print orders
+        # print path
         #!!!!!!!!!
         perstationcost = self.station_cost()
         money = perstationcost*num_station
-        immediate = sum([self.expected_reward(order.money, len(path)) for order in orders])
-        rate_profit = num_station/len(self.stations)*income
+        immediate = sum([self.expected_reward(order, len(path)) for order,path in ordertups])
+        rate_profit = num_station/len(self.stations)*2#income
         time_remaining = GAME_LENGTH - state.time
         if verbose:
             print money
@@ -124,6 +132,10 @@ class Player(BasePlayer):
                         bestPath = p
         return (bestMoney,bestStation,bestOrder,bestPath)
 
+    def path_to_edges(self, path):
+        return [(path[i], path[i + 1]) for i in range(0, len(path) - 1)]
+
+
     def step(self, state):
         """
         Determine actions based on the current state of the city. Called every
@@ -146,9 +158,13 @@ class Player(BasePlayer):
             commands.append(self.build_command(station))
             self.has_built_station = True
             self.stations.append(station)
+            return commands
 
         # baseline job-picking
         pending_orders = state.get_pending_orders()
+
+        # print pending_orders
+        # 1/0
 
         '''
             generate list of candidate stationss
@@ -161,44 +177,53 @@ class Player(BasePlayer):
             tempGraph = graph.copy()
             self.remove_in_use(tempGraph)
 
-            sorted_orders = sorted([(self.expected_reward(order, \
+            try:
+                sorted_orders = sorted([(self.expected_reward(order, \
                 min([nx.shortest_path_length(tempGraph,source=station,target=order.get_node())\
-                for station in stations])), order) for order in pending_orders])[:10]
-
+                for station in self.stations])), order) for order in pending_orders])[:10]
+            except:
+                return commands;
             #list of list of orders
             best_orders_lists=[]
 
             for i in range(10):
-                shuffled_orders = random.shuffle(sorted_orders)
+                random.shuffle(sorted_orders)
                 tempGraph2 = tempGraph.copy()
-                for order in shuffled_orders:
+                ret = []
+                for order in sorted_orders:
                     p=[0 for i in range(9999)]
                     for station in self.stations:
                         try:
-                            temp_p = nx.shortest_path(graph, source=station, target=order.node)
+                            temp_p = nx.shortest_path(tempGraph2, source=station, target=order[1].node)
                             if(len(temp_p)<len(p)):
                                 p = temp_p
                         except nx.NetworkXException:
                             pass
                     if len(p) != 9999:
-                        for (u, v) in game.path_to_edges(path):
-                            G.edge[u][v]['in_use'] = True
-                            G.edge[v][u]['in_use'] = True
-                            self.remove_in_use(tempGraph2)
-                            best_orders_lists.append((shuffled_orders[1],p))
+                        path_edges = self.path_to_edges(p)
+                        for edge in path_edges:
+                        # for (u, v) in self.path_to_edges(p:
+                            # tempGraph2.edge[u][v]['in_use'] = True
+                            # tempGraph2.edge[v][u]['in_use'] = True
+                            if edge in tempGraph2.edges():
+                                tempGraph2.remove_edge(edge[0],edge[1])
+                        # self.remove_in_use(tempGraph2)
+                        ret.append((order[1],p))
+                best_orders_lists.append(ret)
 
 
             if len(best_orders_lists)>0:
                 command_scores = []
                 for commands in best_orders_lists:
                     numStations = 0 if random.random()>0.1 else 1
-                    command_scores.append(self.score_commands(state,numStations, commands),commands, numStations)
+                    command_scores.append((self.score_commands(state,numStations, commands),commands, numStations))
 
-                (best_score,best_command,numStations) = max(command_scores)
+                (best_score,best_commands,numStations) = max(command_scores)
 
                 if numStations>1:
                     commands.append(self.build_command(self.good_station(state)))
-                commands.append(self.send_command(best_command[0],best_command[1]))
+                for command in best_commands:
+                    commands.append(self.send_command(command[0],command[1]))
 
 
             # make copy of graph
@@ -209,5 +234,6 @@ class Player(BasePlayer):
             # (value,station,order,path) = self.baseline_get(tempGraph, pending_orders)
             # if value > 0:
                 # commands.append(self.send_command(order, path))
+        # print commands
 
-        return commands
+        return commands[1:]
