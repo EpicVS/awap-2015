@@ -11,6 +11,7 @@ class Player(BasePlayer):
 
     # You can set up static state here
     has_built_station = False
+    stations = []
 
     def __init__(self, state):
         """
@@ -32,19 +33,10 @@ class Player(BasePlayer):
                 return False
         return True
 
-    # n is the numberr of nodes to select
-    # k is the weighting of the the number of edges
-    def select_first_station(self, graph, n=100, k=1):
-        # sample = random.sample(xrange(100),n)#nx.number_of_nodes(graph)), n)
-        nodes = graph.nodes()
-        # sample_nodes = [nodes[i] for i in sample]
-        sample_nodes = random.sample(nodes, n)
-        node_weights = []
-        for node in sample_nodes:
-            distances =  nx.shortest_path_length(graph, source=node).values()
-            ave_dist = sum(distances)/float(len(distances)) if len(distances)>0 else 9999999999999999999
-            node_weights.append((ave_dist,node))
-        return min(node_weights)[1]
+    def remove_in_use(self, graph):
+        for edge in graph.edges():
+            if graph.edge[edge[0]][edge[1]]['in_use']:
+                graph.remove_edge(edge[0], edge[1])
 
     def step(self, state):
         """
@@ -59,24 +51,43 @@ class Player(BasePlayer):
             Each command should be generated via self.send_command or
             self.build_command. The commands are evaluated in order.
         """
-
-        # We have implemented a naive bot for you that builds a single station
-        # and tries to find the shortest path from it to first pending order.
-        # We recommend making it a bit smarter ;-)
-
+        
         graph = state.get_graph()
-        station = self.select_first_station(graph)#graph.nodes()[0]
-
         commands = []
+        # naive build station
         if not self.has_built_station:
+            station = graph.nodes()[0]
             commands.append(self.build_command(station))
             self.has_built_station = True
+            self.stations.append(station)
 
+        # baseline job-picking
         pending_orders = state.get_pending_orders()
         if len(pending_orders) != 0:
-            order = random.choice(pending_orders)
-            path = nx.shortest_path(graph, station, order.get_node())
-            if self.path_is_valid(state, path):
-                commands.append(self.send_command(order, path))
+            # make copy of graph
+            # remove all edges in use
+            # shortest path from each station to job
+            tempGraph = graph.copy()
+            self.remove_in_use(tempGraph)
+
+            bestMoney = 0
+            bestStation = None
+            bestOrder = None
+            bestPath = None
+            for station in self.stations:
+                for order in pending_orders:
+                    try:
+                        p=nx.shortest_path(tempGraph, source=station, target=order.node)
+                    except nx.NetworkXException:
+                        pass
+                    else:
+                        expectedMoney = order.money - DECAY_FACTOR*len(p)
+                        if expectedMoney > bestMoney:
+                            bestMoney = expectedMoney
+                            bestStation = station
+                            bestOrder = order
+                            bestPath = p
+            if bestMoney > 0:
+                commands.append(self.send_command(bestOrder, bestPath))
 
         return commands
