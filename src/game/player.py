@@ -53,6 +53,9 @@ class Player(BasePlayer):
             node_weights.append((ave_dist/(degree*k),node))
         return min(node_weights)[1]
 
+    def make_random_command(self, state):
+        pass
+
     def score_commands(self, state, stations, paths):
         profit = 0
         money = state.money
