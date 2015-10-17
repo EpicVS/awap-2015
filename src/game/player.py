@@ -1,6 +1,7 @@
 import networkx as nx
 import random
 from base_player import BasePlayer
+import game
 from settings import *
 
 class Player(BasePlayer):
@@ -122,15 +123,63 @@ class Player(BasePlayer):
 
         # baseline job-picking
         pending_orders = state.get_pending_orders()
+
+        '''
+            generate list of candidate stationss
+            *--generate list of orders sorted by time senstive reward
+            take first x of those and generate subsets
+            evalueate ricsons functions on each subset
+            pick greatest.
+        '''
         if len(pending_orders) != 0:
-            # make copy of graph
-            # remove all edges in use
-            # shortest path from each station to job
             tempGraph = graph.copy()
             self.remove_in_use(tempGraph)
 
-            (money,station,order,path) = self.baseline_get(tempGraph, pending_orders)
-            if money > 0:
-                commands.append(self.send_command(order, path))
+            sorted_orders = sorted([(self.expected_reward(order, \
+                min([nx.shortest_path_length(tempGraph,source=station,target=order.get_node())\
+                for station in stations])), order) for order in pending_orders])[:10]
+
+            #list of list of orders
+            best_orders_lists=[]
+
+            for i in range(10):
+                shuffled_orders = random.shuffle(sorted_orders)
+                tempGraph2 = tempGraph.copy()
+                for order in shuffled_orders:
+                    p=[0 for i in range(9999)]
+                    for station in self.stations:
+                        try:
+                            temp_p = nx.shortest_path(graph, source=station, target=order.node)
+                            if(len(temp_p)<len(p)):
+                                p = temp_p
+                        except nx.NetworkXException:
+                            pass
+                    if len(p) != 9999:
+                        for (u, v) in game.path_to_edges(path):
+                            G.edge[u][v]['in_use'] = True
+                            G.edge[v][u]['in_use'] = True
+                            self.remove_in_use(tempGraph2)
+                            best_orders_lists.append((shuffled_orders[1],p))
+
+
+            if len(best_orders_lists)>0:
+                command_scores = []
+                for commands in best_orders_lists:
+                    numStations = 0 if random.random()>0.1 else 1
+                    command_scores.append(self.score_commands(state,numStations, commands),commands)
+
+                best_command = max(command_scores)[1]
+
+                commands.append(self.send_command(best_command[0],best_command[1]))
+
+
+            # make copy of graph
+            # remove all edges in use
+            # shortest path from each station to job
+
+
+            # (value,station,order,path) = self.baseline_get(tempGraph, pending_orders)
+            # if value > 0:
+                # commands.append(self.send_command(order, path))
 
         return commands
