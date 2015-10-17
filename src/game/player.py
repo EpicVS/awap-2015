@@ -46,6 +46,9 @@ class Player(BasePlayer):
             node_weights.append((ave_dist,node))
         return min(node_weights)[1]
 
+    def score_orders(self, state, order):
+        pass
+
     def step(self, state):
         """
         Determine actions based on the current state of the city. Called every
