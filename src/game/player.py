@@ -78,7 +78,7 @@ class Player(BasePlayer):
             tree = nx.shortest_path(state.graph, source = station)
             for k, v in tree.items():
                 dist[k-1] = min(dist[k-1],v)
-        deg = [state.graph.degree(x+1) for x in xrange(len(d2n))]
+        deg = [len(nx.neighbors(state.graph,(x+1))) for x in xrange(len(state.graph.nodes())-1)]
         value = [x*dist[i] for i, x in enumerate(deg)]
         imax = -1
         vmax = 0
@@ -220,11 +220,11 @@ class Player(BasePlayer):
 
                 (best_score,best_commands,numStations) = max(command_scores)
 
-                if numStations>1:
-                    commands.append(self.build_command(self.good_station(state)))
+
                 for command in best_commands:
                     commands.append(self.send_command(command[0],command[1]))
-
+                if numStations>=1:
+                    commands.append(self.build_command(self.good_station(state)))
 
             # make copy of graph
             # remove all edges in use
